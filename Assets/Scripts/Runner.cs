@@ -5,92 +5,57 @@ using UnityEngine;
 public class Runner: MonoBehaviour
 {
     /// <summary>
-    /// Control point where runner is standing
+    /// List of points to move to
     /// </summary>
-    public ControlPoint HomeControlPoint;
+    public List<Vector3> Targets = new List<Vector3>();
 
     /// <summary>
-    /// Speed of a runner
+    /// Speed of the runner
     /// </summary>
-    public float Speed = 1;
-
-    private Queue<ControlPoint> _targetsQueue = new();
-    
-    /// <summary>
-    /// Target to run to
-    /// </summary>
-    private ControlPoint _currentTarget;
+    public float Speed;
 
     /// <summary>
-    /// Position of self
+    /// Distance when target counts as reached
     /// </summary>
-    private Vector3 SelfPosition => transform.position;
+    private float _checkDistance = 0.3f;
 
     /// <summary>
-    /// Object that runner is carrying
+    /// Is moving forward
     /// </summary>
-    private GameObject _carriedObject;
+    private bool _forward = true;
 
     /// <summary>
-    /// Runner at the furthest point who will take the item
+    /// Index of currernt target
     /// </summary>
-    private Runner _nextRunner;
+    private int _currentTargetIndex = 0;
 
-    /// <summary>
-    /// Timeout after item was delivered to a final destination
-    /// </summary>
-    private float _timeout = 2f;
-
-    /// <summary>
-    /// Time to wait before movement will start again
-    /// </summary>
-    private float _waitUntil = 0f;
-
-    /// <summary>
-    /// Link to a game services
-    /// </summary>
-    [Header("Links")] public Services Services;
-
-    /// <summary>
-    /// Arm to carry items
-    /// </summary>
-    [Header("Local links")] 
-    [SerializeField] private GameObject RightArm;
-
-    /// <summary>
-    /// Link to a hand to hold items
-    /// </summary>
-    [SerializeField] private GameObject RightHand;
-
-    /// <summary>
-    /// Link to a body renderer to set another color for it
-    /// </summary>
-    [SerializeField] private MeshRenderer CorpseRenderer;
-    
-    void Start()
-    {
-        var homePosition = HomeControlPoint.transform.position;
-        transform.position = new Vector3(homePosition.x, 0f, homePosition.z);
-    }
-    
     void Update()
     {
-        if (_carriedObject || Vector3.Distance(SelfPosition, HomeControlPoint.transform.position) > Single.Epsilon)
+        CheckTargets();
+        transform.position = Vector3.MoveTowards(transform.position, Targets[_currentTargetIndex], Time.deltaTime * Speed);
+    }
+
+    private void OnDrawGizmos()
+    {
+        var shiftUp = new Vector3(0, 0.3f, 0);
+        var change = _forward ? 1 : -1;
+        
+        Gizmos.color = _forward ? Color.red : Color.blue;
+
+        Gizmos.DrawLine(transform.position + shiftUp, Targets[_currentTargetIndex] + shiftUp);
+        var from = _forward ? _currentTargetIndex + change : 1;
+        var to = _forward ? Targets.Count : _currentTargetIndex + 1;
+        for (var i = from; i < to; i++)
         {
-            if (_carriedObject && _waitUntil > Time.time) return;
-            CheckTargets();
-            transform.position = Vector3.MoveTowards(SelfPosition, _currentTarget.transform.position, Time.deltaTime * Speed);
+            Gizmos.DrawLine(Targets[i - 1] + shiftUp, Targets[i] + shiftUp);
+        }
+        
+        foreach (var point in Targets)
+        {
+            Gizmos.DrawSphere(point + shiftUp, 0.1f);
         }
     }
 
-    /// <summary>
-    /// Set runner's body color
-    /// </summary>
-    public void SetColor(Color color)
-    {
-        CorpseRenderer.material.color = color;
-    }
-    
     /// <summary>
     /// Turn runner towards some point
     /// </summary>
@@ -101,92 +66,21 @@ public class Runner: MonoBehaviour
     }
 
     /// <summary>
-    /// Give item to another runner
-    /// </summary>
-    /// <param name="anotherRunner">Runner who will take the item</param>
-    public void Give(Runner anotherRunner)
-    {
-        anotherRunner.Take(_carriedObject);
-        _carriedObject = null;
-        
-        RightArm.transform.localRotation = Quaternion.Euler(0, 0, 0);
-    }
-
-    /// <summary>
-    /// Take item in runners hand
-    /// </summary>
-    /// <param name="item">Item to hold</param>
-    public void Take(GameObject item)
-    {
-        RightArm.transform.localRotation = Quaternion.Euler(0, 0, -90);
-        
-        _carriedObject = item;
-        _carriedObject.transform.SetParent(RightHand.transform);
-        _carriedObject.transform.localPosition = Vector3.zero;
-        _carriedObject.transform.localRotation = Quaternion.identity;
-    }
-
-    /// <summary>
-    /// Method to fill the queue and define the person, who will receive item
-    /// </summary>
-    void GenerateQueue()
-    {
-        var direction = Services.GameController.MovementDirection;
-        var controlPoints = Services.GameController.ControlPoints;
-        var homeIndex = controlPoints.FindIndex(t => t == HomeControlPoint);
-        if (homeIndex == 0 && direction < 0 || homeIndex == controlPoints.Count - 1 && direction > 0)
-        {
-            direction *= -1;
-            Services.GameController.MovementDirection = direction;
-            _waitUntil = Time.time + _timeout;
-        }
-        var cursor = homeIndex + direction;
-
-        while (!Services.GameController.ControlPoints[cursor].Owner)
-        {
-            _targetsQueue.Enqueue(Services.GameController.ControlPoints[cursor]);
-            Debug.Log(cursor);
-            cursor += direction;
-        }
-        
-        _nextRunner = Services.GameController.ControlPoints[cursor].Owner;
-
-        while (Services.GameController.ControlPoints[cursor] != HomeControlPoint)
-        {
-            _targetsQueue.Enqueue(Services.GameController.ControlPoints[cursor]);
-            Debug.Log(cursor);
-            cursor -= direction;
-        }
-        
-        _targetsQueue.Enqueue(HomeControlPoint);
-        Debug.Log(cursor);
-    }
-
-    /// <summary>
     /// Check target changing conditions
     /// </summary>
     void CheckTargets()
     {
-        if (_targetsQueue.Count == 0)
+        if (Vector3.Distance(Targets[_currentTargetIndex], transform.position) < _checkDistance)
         {
-            if (_carriedObject)
+            if (_forward && _currentTargetIndex == Targets.Count - 1)
             {
-                GenerateQueue();
-                NextTarget();
-            }
-        }
-        else
-        {
-            if (_nextRunner && Vector3.Distance(SelfPosition, _nextRunner.transform.position) < 0.5f)
+                _forward = false;
+            } 
+            else if (!_forward && _currentTargetIndex == 0)
             {
-                Give(_nextRunner);
-                _nextRunner = null;
-                NextTarget();
+                _forward = true;
             }
-            else if (Vector3.Distance(SelfPosition, _currentTarget.transform.position) < Single.Epsilon)
-            {
-                NextTarget();
-            }
+            NextTarget();
         }
     }
 
@@ -195,8 +89,7 @@ public class Runner: MonoBehaviour
     /// </summary>
     void NextTarget()
     {
-        if (_targetsQueue.Count == 0) return;
-        _currentTarget = _targetsQueue.Dequeue();
-        LookAt(_currentTarget.transform.position);
+        _currentTargetIndex += _forward ? 1 : -1;
+        transform.LookAt(Targets[_currentTargetIndex]);
     }
 }

@@ -670,7 +670,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7295731383062341194}
-  - component: {fileID: 4562408285891209039}
+  - component: {fileID: 6787419707193492798}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -694,7 +694,7 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4562408285891209039
+--- !u!114 &6787419707193492798
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -703,12 +703,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 7295731383062341195}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 92ae27229bbe45208121056a3aeb76a1, type: 3}
+  m_Script: {fileID: 11500000, guid: 794d70aba1db4696b359bdc5da7084d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  HomeControlPoint: {fileID: 0}
-  Speed: 1
-  Services: {fileID: 0}
   RightArm: {fileID: 7220588755023987126}
   RightHand: {fileID: 524197118786010267}
   CorpseRenderer: {fileID: 8819272169512888181}
